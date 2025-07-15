@@ -30,7 +30,7 @@ def handle_scan(ack, respond, command):
         city = parts[0]
         number = parts[1]
     else:
-        respond("Invalid command format. Use `/aurabot_scan <city> <number>`.")
+        respond("Invalid command format. Use `/star_scan <city> <number>`.")
         return
     if not city:
         respond("Please give a city name.")
@@ -58,7 +58,7 @@ def handle_eye_command(ack, respond, command):
         city = parts[1]
         days = int(parts[2])
     else:
-        respond("Invalid command format. Use `/aurabot_visible_pass <satellite_id> <city> <days>`.")
+        respond("Invalid command format. Use `/star_visible_pass <satellite_id> <city> <days>`.")
         return
     if not city:
         respond("Please give a city name.")
@@ -81,7 +81,7 @@ def handle_notify_command(ack, respond, command):
     ack()
     parts = command["text"].strip().split()
     if len(parts) != 2:
-        respond("Invalid command format. Use `/star_notify <satellite_id> <city> <days>`.")
+        respond("Invalid command format. Use `/star_notify <satellite_id> <city>`.")
         return
     else:
         sat_id = int(parts[0])
@@ -93,7 +93,9 @@ def handle_notify_command(ack, respond, command):
         return
     respond(f"You are located at {lat}, {lon}. \n You will be notified when it will appear over {city} again... ")
     passes = visible_scan(sat_id, lat, lon, 7, 20)
-
+    if not passes:
+        respond("No visible passes found")
+        return
     pass1= passes[0]
     next_pass = {
         "starUTC" : datetime.fromtimestamp(pass1["startUTC"]),
@@ -102,8 +104,13 @@ def handle_notify_command(ack, respond, command):
         "city" : city,
     }
     next_pass = "\n".join(next_pass)
-    dm_channel = client.conversations_open(users=user)["channel"]['id']
     
+    dm_channel_setup = client.conversations_open(users=user)
+    if dm_channel_setup and dm_channel_setup.get("ok") and "channel" in dm_channel_setup:
+        dm_channel = dm_channel_setup["channel"]["id"]
+    else:
+        respond("Could not open a direct message channel.")
+        return
     start_time = parser.parse(pass1["startUTC"])
     delay = int((start_time - datetime.now()).total_seconds())
     post_the_message_at = int(time.time()) + max(5, delay)

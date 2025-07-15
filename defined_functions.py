@@ -9,7 +9,7 @@ ny2o_api_token = os.environ["ny2o_token"]
 
 
 def coordinates(city):
-    locator = Nominatim(user_agent="aurabot")
+    locator = Nominatim(user_agent="star")
     location = locator.geocode(city)
     if location:
         latitude = location.latitude

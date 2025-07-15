@@ -26,6 +26,7 @@ def fetch_memes_from_reddit(channels):
     try:
         client.chat_postMessage(
             channel=channels,
+            text="Lessgo!",
             blocks=[
                    {
                     "type": "section",
