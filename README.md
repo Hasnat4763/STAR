@@ -1,2 +1,2 @@
-# small-jim-the-wholesome
+# STAR
 A Slack Bot
