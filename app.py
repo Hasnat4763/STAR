@@ -14,8 +14,10 @@ app_token = os.environ["SLACK_APP_TOKEN"]
 
 
 app = App(token=bot_token)
+client = WebClient(token=bot_token)
 
-@app.command("/aurabot_scan")
+
+@app.command("/star_scan")
 def handle_scan(ack, respond, command):
     ack()
     parts = command["text"].strip().split()
@@ -45,7 +47,7 @@ def handle_scan(ack, respond, command):
     
 
 
-@app.command("/aurabot_visible_pass")
+@app.command("/star_visible_pass")
 def handle_eye_command(ack, respond, command):
     ack()
     parts = command["text"].strip().split()
@@ -71,6 +73,26 @@ def handle_eye_command(ack, respond, command):
     else:
         list_of_passes = "\n".join([f"- {datetime.fromtimestamp(p['startUTC'], tz=timezone.utc)} to {datetime.fromtimestamp(p['endUTC'], tz=timezone.utc)}" for p in passes])
         respond(f"Visible passes for satellite ID {satellite_id} over {city}:\n{list_of_passes}")
+
+@app.command("/star_notify")
+def handle_notify_command(ack, respond, command):
+    ack()
+    parts = command["text"].strip().split()
+    if len(parts) != 2:
+        respond("Invalid command format. Use `/star_notify <satellite_id> <city> <days>`.")
+        return
+    else:
+        sat_id = int(parts[0])
+        city = parts[1]
+        user = command["user_id"]
+    lat, lon = coordinates(city)
+    if lat is None or lon is None:
+        respond(f"Could not find coordinates for {city}. Please check the city name.")
+        return
+    respond(f"You are located at {lat}, {lon}. \n You will be notified when it will appear over {city} again... ")
+    passes = visible_scan(sat_id, lat, lon, 7, 20)
+    next_pass = 
+    
 
 if __name__ == "__main__":
     SocketModeHandler(app, app_token).start()
