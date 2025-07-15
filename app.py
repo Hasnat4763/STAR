@@ -4,10 +4,12 @@ from datetime import datetime, timezone
 import os
 from dotenv import load_dotenv
 from slack_sdk import WebClient
-
+from dateutil import parser
+import time
 load_dotenv(".env")
 
 from defined_functions import coordinates, sat_scan, visible_scan
+from meme_fetcher import fetch_memes_from_reddit
 
 bot_token = os.environ["SLACK_BOT_TOKEN"]
 app_token = os.environ["SLACK_APP_TOKEN"]
@@ -91,7 +93,29 @@ def handle_notify_command(ack, respond, command):
         return
     respond(f"You are located at {lat}, {lon}. \n You will be notified when it will appear over {city} again... ")
     passes = visible_scan(sat_id, lat, lon, 7, 20)
-    next_pass = 
+
+    pass1= passes[0]
+    next_pass = {
+        "starUTC" : datetime.fromtimestamp(pass1["startUTC"]),
+        "endUTC" : datetime.fromtimestamp(pass1["endUTC"]),
+        "satellite_id" : sat_id,
+        "city" : city,
+    }
+    next_pass = "\n".join(next_pass)
+    dm_channel = client.conversations_open(users=user)["channel"]['id']
+    
+    start_time = parser.parse(pass1["startUTC"])
+    delay = int((start_time - datetime.now()).total_seconds())
+    post_the_message_at = int(time.time()) + max(5, delay)
+    client.chat_postMessage(channel=dm_channel, text=next_pass, post_at=post_the_message_at)
+    
+    
+@app.command("/star_memes")
+def handle_memes_command(ack, respond, command):
+    ack()
+    parts = command["channel_id"].strip()
+    respond("Fetching memes from r/astronomymemes...")
+    fetch_memes_from_reddit(parts)
     
 
 if __name__ == "__main__":

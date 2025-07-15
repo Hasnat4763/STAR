@@ -2,6 +2,7 @@ import os
 import requests
 from geopy.geocoders import Nominatim
 from dotenv import load_dotenv
+
 load_dotenv(".env")
 
 ny2o_api_token = os.environ["ny2o_token"]
