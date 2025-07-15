@@ -3,6 +3,7 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from datetime import datetime, timezone
 import os
 from dotenv import load_dotenv
+from slack_sdk import WebClient
 
 load_dotenv(".env")
 
