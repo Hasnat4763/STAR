@@ -4,12 +4,13 @@ from datetime import datetime, timezone
 import os
 from dotenv import load_dotenv
 from slack_sdk import WebClient
-from dateutil import parser
 import time
+from math import ceil
 load_dotenv(".env")
 
-from defined_functions import coordinates, sat_scan, visible_scan
+from defined_functions import coordinates, sat_scan, visible_scan, radio_pass_scan, get_info_ninja, APOD
 from meme_fetcher import fetch_memes_from_reddit
+from formatter import format_to_block, format_planet
 
 bot_token = os.environ["SLACK_BOT_TOKEN"]
 app_token = os.environ["SLACK_APP_TOKEN"]
@@ -73,33 +74,64 @@ def handle_eye_command(ack, respond, command):
         respond("No visible passes found")
         return
     else:
-        list_of_passes = "\n".join([f"- {datetime.fromtimestamp(p['startUTC'], tz=timezone.utc)} to {datetime.fromtimestamp(p['endUTC'], tz=timezone.utc)}" for p in passes])
-        respond(f"Visible passes for satellite ID {satellite_id} over {city}:\n{list_of_passes}")
+        list_of_passes = format_to_block(passes, "visible")
+        respond(blocks=list_of_passes)
+
+@app.command("/star_radiopasses")
+def handle_radio_command(ack, respond, command):
+    ack()
+    parts = command["text"].strip().split()
+    if len(parts) == 3:
+        satellite_id = int(parts[0])
+        city = parts[1]
+        days = int(parts[2])
+    else:
+        respond("Invalid command format. Use `/star_visible_pass <satellite_id> <city> <days>`.")
+        return
+    if not city:
+        respond("Please give a city name.")
+        return
+    lat,lon = coordinates(city)
+    if lat is None or lon is None:
+        respond(f"Could not find coordinates for {city}. Please check the city name.")
+        return
+    respond(f"You are located at {lat}, {lon}. \n Finding when it will appear on your radio again... ")
+    passes = radio_pass_scan(satellite_id, lat, lon, days, 10)
+    if not passes:
+        respond("No radio passes found")
+        return
+    else:
+        list_of_passes = format_to_block(passes, "Radio")
+        respond(blocks=list_of_passes)
 
 @app.command("/star_notify")
 def handle_notify_command(ack, respond, command):
     ack()
     parts = command["text"].strip().split()
-    if len(parts) != 2:
+    if len(parts) != 3:
         respond("Invalid command format. Use `/star_notify <satellite_id> <city>`.")
         return
     else:
         sat_id = int(parts[0])
         city = parts[1]
+        type = parts[2]
         user = command["user_id"]
     lat, lon = coordinates(city)
     if lat is None or lon is None:
         respond(f"Could not find coordinates for {city}. Please check the city name.")
         return
     respond(f"You are located at {lat}, {lon}. \n You will be notified when it will appear over {city} again... ")
-    passes = visible_scan(sat_id, lat, lon, 7, 20)
+    if type == "radio":
+        passes = radio_pass_scan(sat_id, lat, lon, 7, 20)
+    else:
+        passes = visible_scan(sat_id, lat, lon, 7, 20)
     if not passes:
-        respond("No visible passes found")
+        respond(f"No {type} passes found")
         return
     pass1= passes[0]
     next_pass = {
-        "starUTC" : datetime.fromtimestamp(pass1["startUTC"]),
-        "endUTC" : datetime.fromtimestamp(pass1["endUTC"]),
+        "starUTC" : datetime.fromtimestamp(pass1["startUTC"], tz=timezone.utc),
+        "endUTC" : datetime.fromtimestamp(pass1["endUTC"], tz=timezone.utc),
         "satellite_id" : sat_id,
         "city" : city,
     }
@@ -111,19 +143,61 @@ def handle_notify_command(ack, respond, command):
     else:
         respond("Could not open a direct message channel.")
         return
-    start_time = parser.parse(pass1["startUTC"])
-    delay = int((start_time - datetime.now()).total_seconds())
-    post_the_message_at = int(time.time()) + max(5, delay)
-    client.chat_postMessage(channel=dm_channel, text=next_pass, post_at=post_the_message_at)
+    start_time = datetime.fromtimestamp(pass1["startUTC"], tz=timezone.utc)
+    delay = ceil((start_time - datetime.now(timezone.utc)).total_seconds())
+    if delay < 10:
+        respond("The next pass is already started can't give notification.")
+        return
     
-    
+    post_the_message_at = int(time.time()) + delay
+    client.chat_scheduleMessage(channel=dm_channel, text=f"We are notifying you about a pass of the satellite with ID {sat_id} \n{next_pass}", post_at=post_the_message_at)
 @app.command("/star_memes")
 def handle_memes_command(ack, respond, command):
     ack()
     parts = command["channel_id"].strip()
     respond("Fetching memes from r/astronomymemes...")
     fetch_memes_from_reddit(parts)
-    
+
+@app.command("/star_iss")
+def handle_iss_command(ack, respond, command):
+    ack()
+    parts = command["text"].strip().split()
+    if len(parts) != 1:
+        respond("Invalid command format. Use `/star_iss <city>`.")
+        return
+    city = parts[0]
+    lat, lon = coordinates(city)
+    if lat is None or lon is None:
+        respond(f"Could not find coordinates for {city}. Please check the city name.")
+        return
+    respond(f"You are located at {lat}, {lon}. \n Finding when ISS will appear over {city} again... ")
+    visible_passes = visible_scan(25544, lat, lon, 7, 20)
+    radio_passes = radio_pass_scan(25544, lat, lon, 7, 10)
+    if not visible_passes:
+        respond("No visible passes found for ISS.")
+        return
+    list_of_passes = format_to_block(visible_passes, "visible")
+    respond(blocks=list_of_passes)
+    if not radio_passes:
+        respond("No radio passes found for ISS.")
+        return
+    list_of_radio_passes = format_to_block(radio_passes[:5], "radio")
+    respond(blocks=list_of_radio_passes)
+@app.command("/star_facts")
+def handle_facts_command(ack, respond, command):
+    ack()
+    planet = command["text"].strip()
+    data = get_info_ninja(planet)
+    if not data:
+        respond(f"Could not find information about {planet}. Please check the planet name.")
+        return
+    infos = format_planet(data)
+    respond(blocks=infos)
+@app.command("/star_astronomy_photo")
+def handle_astronomy(ack, respond, command):
+    ack()
+    data = APOD()
+    respond(blocks=data)
 
 if __name__ == "__main__":
     SocketModeHandler(app, app_token).start()
