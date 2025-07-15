@@ -7,7 +7,7 @@ load_dotenv(".env")
 
 ny2o_api_token = os.environ["ny2o_token"]
 ninja_api_token = os.environ["NINJA_API"]
-NASA_API = os.environ["NASA_API"]
+nasa_api_token = os.environ["NASA_API"]
 
 
 def coordinates(city):
@@ -59,7 +59,7 @@ def get_info_ninja(planet):
     return data[0]
 
 def APOD():
-    url = f"https://api.nasa.gov/planetary/apod?api_key={NASA_API}"
+    url = f"https://api.nasa.gov/planetary/apod?api_key={nasa_api_token}"
     response = requests.get(url)
     if response.status_code != 200:
         return None
