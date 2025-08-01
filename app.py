@@ -129,12 +129,12 @@ def handle_notify_command(ack, respond, command):
         respond(f"No {type} passes found")
         return
     pass1= passes[0]
-    next_pass = {
-        "starUTC" : datetime.fromtimestamp(pass1["startUTC"], tz=timezone.utc),
-        "endUTC" : datetime.fromtimestamp(pass1["endUTC"], tz=timezone.utc),
-        "satellite_id" : sat_id,
-        "city" : city,
-    }
+    next_pass = (
+    f"Start: {datetime.fromtimestamp(pass1['startUTC'], tz=timezone.utc)}\n"
+    f"End: {datetime.fromtimestamp(pass1['endUTC'], tz=timezone.utc)}\n"
+    f"Satellite ID: {sat_id}\n"
+    f"City: {city}"
+    )
     next_pass = "\n".join(next_pass)
     
     dm_channel_setup = client.conversations_open(users=user)
@@ -154,7 +154,7 @@ def handle_notify_command(ack, respond, command):
 @app.command("/star_memes")
 def handle_memes_command(ack, respond, command):
     ack()
-    parts = command["channel_id"].strip()
+    parts = command["channel_id"]
     respond("Fetching memes from r/astronomymemes...")
     fetch_memes_from_reddit(parts)
 
