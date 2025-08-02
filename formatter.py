@@ -23,7 +23,9 @@ def format_to_block(passes, type):
     for i in passes:
         start = datetime.fromtimestamp(i['startUTC'], tz=timezone.utc).strftime('%Y-%m-%d %I:%M %p UTC')
         end = datetime.fromtimestamp(i['endUTC'], tz=timezone.utc).strftime('%Y-%m-%d %I:%M %p UTC')
-        duration = int(i.get('duration', 0)) // 60
+        duration_seconds = int(i['endUTC']) - int(i['startUTC'])
+        duration = duration_seconds // 60
+
         max_el = i.get('maxEl', 'N/A')
         
         pass_infos = (
