@@ -135,7 +135,6 @@ def handle_notify_command(ack, respond, command):
     f"Satellite ID: {sat_id}\n"
     f"City: {city}"
     )
-    next_pass = "\n".join(next_pass)
     
     dm_channel_setup = client.conversations_open(users=user)
     if dm_channel_setup and dm_channel_setup.get("ok") and "channel" in dm_channel_setup:
